@@ -18,5 +18,6 @@ stdenv.mkDerivation rec {
     valgrind
     kdeApplications.kcachegrind
     pkg-config
+    openssl
   ];
 }

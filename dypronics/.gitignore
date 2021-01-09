@@ -1,0 +1,15 @@
+.dub
+docs.json
+__dummy.html
+docs/
+/dypronics
+dypronics.so
+dypronics.dylib
+dypronics.dll
+dypronics.a
+dypronics.lib
+dypronics-test-*
+*.exe
+*.o
+*.obj
+*.lst
