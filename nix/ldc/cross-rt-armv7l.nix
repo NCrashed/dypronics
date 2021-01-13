@@ -3,7 +3,7 @@ with stdenv;
 let
   version = "1.25.0-beta1";
 in mkDerivation {
-  pname = "ldc-cross-rt";
+  pname = "ldc-rt-armv7l";
   inherit version;
 
   src = fetchurl rec {
