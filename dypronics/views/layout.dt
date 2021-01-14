@@ -9,9 +9,10 @@ html
     title Dypronics
     - css("semantic.min");
     - css("Chart.min");
+    - js("jquery-3.1.1.min");
   body
     div(class='ui container')
       block body
-    - js("jquery-3.1.1.min");
     - js("semantic.min");
     - js("Chart.min");
+    - js("dypronics");

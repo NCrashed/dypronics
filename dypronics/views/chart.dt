@@ -1,2 +1,5 @@
-- void chart(string name)
-    h2 #{name}
+- void chart(string name, string title)
+    h2 #{title}
+    canvas(id='#{name}', width='400', height='400')
+    script
+        | $(document).ready(function(){ lineChart("#{name}", "#{title}"); });

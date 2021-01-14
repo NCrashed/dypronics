@@ -8,7 +8,7 @@ block body
   - if (authenticated)
     form(action='logout', method='POST')
       button(type='submit', class='ui button') Log out
-      - chart("Temperature sensor");
+      - chart("chart-temp", "Temperature sensor");
   - else
     h2 Log in
     form(action='login', method='POST', class='ui form')
