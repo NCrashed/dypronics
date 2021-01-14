@@ -6,6 +6,7 @@
 	"dependencies": {
 		"vibe-d:core": "~>0.9.2",
 		"vibe-d:http": "~>0.9.2",
+		"vibe-d:web": "~>0.9.2",
 	},
 	"description": "Web server to collect stats from probs on hydroponics",
 	"license": "MIT",
