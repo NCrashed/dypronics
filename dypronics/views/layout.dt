@@ -1,12 +1,17 @@
+- void css(string file)
+  link(rel='stylesheet', type='text/css', href='styles/#{file}.css')
+- void js(string file)
+  script(src='/js/#{file}.js')
+
 doctype html
 html
   head
     title Dypronics
-    link(rel='stylesheet',type='text/css',href='/styles/semantic.min.css')
-    link(rel='stylesheet',type='text/css',href='/styles/Chart.min.css')
+    - css("semantic.min");
+    - css("Chart.min");
   body
     div(class='ui container')
       block body
-    script(src='/js/jquery-3.1.1.min.js')
-    script(src='/js/semantic.min.js')
-    script(src='/js/Chart.min.js')
+    - js("jquery-3.1.1.min");
+    - js("semantic.min");
+    - js("Chart.min");
