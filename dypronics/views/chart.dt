@@ -1,0 +1,2 @@
+- void chart(string name)
+    h2 #{name}
