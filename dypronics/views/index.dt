@@ -4,14 +4,15 @@ block body
   h1 Welcome
 
   - if (authenticated)
-    form(action="logout", method="POST")
-      button(type="submit") Log out
+    form(action='logout', method='POST')
+      button(type='submit', class='ui button') Log out
   - else
     h2 Log in
-    form(action="login", method="POST")
-      p User name:
-        input(type="text", name="username")
-      p Password:
-        input(type="password", name="password")
-      button(type="submit")
-        p Login
+    form(action='login', method='POST', class='ui form')
+      div(class='field')
+        label User name:
+        input(type='text', name='username')
+      div(class='field')
+        label Password:
+        input(type='password', name='password')
+      button(type='submit', class='ui button') Login

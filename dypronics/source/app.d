@@ -1,4 +1,5 @@
 import vibe.core.core : runApplication;
+import vibe.http.fileserver;
 import vibe.http.router;
 import vibe.http.server;
 import vibe.web.web;
@@ -8,6 +9,7 @@ else {
 void main()
 {
 	auto router = new URLRouter;
+	router.get("*", serveStaticFiles("public/"));
 	router.registerWebInterface(new WebInterface);
 
 	auto settings = new HTTPServerSettings;
