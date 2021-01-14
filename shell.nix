@@ -19,5 +19,6 @@ stdenv.mkDerivation rec {
     kdeApplications.kcachegrind
     pkg-config
     openssl
+    inotify-tools
   ];
 }

@@ -7,6 +7,8 @@ void handleRequest(scope HTTPServerRequest req, scope HTTPServerResponse res)
 		res.writeBody("Hello, World!", "text/plain");
 }
 
+version(unittest) { void main() {}}
+else {
 void main()
 {
 	auto settings = new HTTPServerSettings;
@@ -14,7 +16,8 @@ void main()
 	settings.bindAddresses = ["0.0.0.0"];
 
 	auto l = listenHTTP(settings, &handleRequest);
-	scope (exit) l.stopListening();
+	scope (exit) l.stopListening( );
 
 	runApplication();
+}
 }
