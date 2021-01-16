@@ -41,8 +41,8 @@ void main()
 
 @path("/api/")
 interface APIRoot {
-  void postData(SensorId sid, double value);
-	Json getData(SensorId sid);
+  void postSensor(SensorId sid, double value);
+	Json getSensor(SensorId sid);
 }
 
 class RestServer : APIRoot {
@@ -52,7 +52,7 @@ class RestServer : APIRoot {
 		dataCollection = coll;
 	}
 
-	void postData(SensorId sid, double value) {
+	void postSensor(SensorId sid, double value) {
 		auto time = Clock.currTime.toUnixTime;
 		dataCollection.insert(SensorData(sid, time, value));
 	}
@@ -61,7 +61,7 @@ class RestServer : APIRoot {
 		long[] time; // seconds
 		double[] values;
 	}
-	Json getData(SensorId sid) {
+	Json getSensor(SensorId sid) {
 		Array!long time;
 		Array!double values;
 		foreach(doc; dataCollection.find(["sensor": sid])) {
@@ -115,7 +115,7 @@ void simulateData() {
 	while(true) {
 		import std.stdio; writeln("Generate data");
 		foreach(s; sensors) {
-			client.postData(s.id, s.randomValue);
+			client.postSensor(s.id, s.randomValue);
 		}
 		sleep(1.seconds);
 	}
