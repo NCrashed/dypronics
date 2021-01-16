@@ -1,7 +1,7 @@
 - import dypronics.sensor;
-- void chart(Sensor sensor, int w, int h)
+- void chart(Sensor sensor, int w, int h, long[] time, double[] values)
   div(class="grid-stack-item", gs-w="#{w}", gs-h="#{h}")
     div(class="grid-stack-item-content")
       canvas(id='sensor#{sensor.id}', class="sensor-chart")
       script
-        | $(document).ready(function(){ lineChart("sensor#{sensor.id}", "#{sensor.name}", "#{sensor.color}", "#{sensor.units}"); });
+        | $(document).ready(function(){ lineChart(#{sensor.id}, "#{sensor.name}", "#{sensor.color}", "#{sensor.units}", #{time}, #{values}); });

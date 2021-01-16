@@ -19,11 +19,13 @@ void main()
 {
 	MongoClient client = connectMongoDB("127.0.0.1");
 	auto sensorsData = client.getCollection("dypronics.sensors.data");
+	sensorsData.drop();
 
 	auto router = new URLRouter;
 	router.get("*", serveStaticFiles("public/"));
-	router.registerWebInterface(new WebInterface(sensorsData));
-	router.registerRestInterface(new RestServer(sensorsData));
+	auto restServer = new RestServer(sensorsData);
+	router.registerRestInterface(restServer);
+	router.registerWebInterface(new WebInterface(restServer));
 
 	auto settings = new HTTPServerSettings;
 	settings.port = 8080;
@@ -45,6 +47,11 @@ interface APIRoot {
 	Json getSensor(SensorId sid);
 }
 
+struct PlotData {
+	long[] time; // milli seconds
+	double[] values;
+}
+
 class RestServer : APIRoot {
 	private MongoCollection dataCollection;
 
@@ -57,18 +64,20 @@ class RestServer : APIRoot {
 		dataCollection.insert(SensorData(sid, time, value));
 	}
 
-	struct PlotData {
-		long[] time; // seconds
-		double[] values;
-	}
-	Json getSensor(SensorId sid) {
+	PlotData sensorDataRaw(SensorId sid) {
 		Array!long time;
 		Array!double values;
 		foreach(doc; dataCollection.find(["sensor": sid])) {
-			time.insertBack(doc["time"].get!long);
-			values.insertBack(doc["values"].to!double);
+			if(!doc.isNull) {
+				time.insertBack(1000 * doc["time"].get!long);
+				values.insertBack(doc["value"].to!double);
+			}
 		}
-		return PlotData(time[].array, values[].array).serializeToJson();
+		return PlotData(time[].array, values[].array);
+	}
+
+	Json getSensor(SensorId sid) {
+	  return sensorDataRaw(sid).serializeToJson();
 	}
 }
 
@@ -77,18 +86,22 @@ class WebInterface {
 		// stored in the session store
 		SessionVar!(bool, "authenticated") ms_authenticated;
 		// Sensor data collection
-		MongoCollection dataCollection;
+		RestServer restServer;
 	}
 
-	this(MongoCollection coll) {
-		dataCollection = coll;
+	this(RestServer restServer) {
+		this.restServer = restServer;
 	}
 
 	// GET /
 	void index()
 	{
 		bool authenticated = ms_authenticated;
-		render!("index.dt", authenticated, sensors);
+		PlotData[SensorId] data;
+		if(authenticated) {
+			foreach(s; sensors) data[s.id] = restServer.sensorDataRaw(s.id);
+		}
+		render!("index.dt", authenticated, sensors, data);
 	}
 
 	// POST /login (username and password are automatically read as form fields)
@@ -113,7 +126,6 @@ class WebInterface {
 void simulateData() {
 	auto client = new RestInterfaceClient!APIRoot("http://127.0.0.1:8080/");
 	while(true) {
-		import std.stdio; writeln("Generate data");
 		foreach(s; sensors) {
 			client.postSensor(s.id, s.randomValue);
 		}

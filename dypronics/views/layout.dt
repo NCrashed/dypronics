@@ -15,6 +15,7 @@ html
   body
     div(class='ui container')
       block body
+    - js("moment.min");
     - js("semantic.min");
     - js("Chart.min");
     - js("gridstack-h5");

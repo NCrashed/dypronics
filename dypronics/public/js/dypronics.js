@@ -2,11 +2,10 @@ function getRandomInt(max) {
   return Math.floor(Math.random() * Math.floor(max));
 }
 
-function lineChart(name, title, color, units) {
-  var ctx = document.getElementById(name);
-  var datapoints = [0, 20, 20, 60, 60, 120, NaN, 180, 120, 125, 105, 110, 170];
+function lineChart(id, title, color, units, labels, datapoints) {
+  var ctx = document.getElementById("sensor"+id);
   var data = {
-    labels: ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12'],
+    labels: labels,
     datasets: [{
       label: title,
       backgroundColor: color,
@@ -36,20 +35,24 @@ function lineChart(name, title, color, units) {
         },
         scales: {
 					xAxes: [{
-						display: true,
-						scaleLabel: {
-							display: true
-						}
+            type: 'time',
+            time: {
+              format: 'HH:mm',
+              tooltipFormat: 'HH:mm',
+              stepSize: 10,
+              displayFormats: {
+                  'millisecond': 'HH:mm',
+                  'second': 'HH:mm',
+                  'minute': 'HH:mm',
+                  'hour': 'HH:mm'
+              },
+            },
 					}],
 					yAxes: [{
 						display: true,
 						scaleLabel: {
 							display: true,
 							labelString: units
-						},
-						ticks: {
-							suggestedMin: -10,
-							suggestedMax: 200,
 						}
 					}]
 				}
@@ -59,4 +62,21 @@ function lineChart(name, title, color, units) {
     data: data,
     options: options
   });
+  var getData = function() {
+    $.ajax({
+      url: '/api/sensor?sid=' + id,
+      success: function(data) {
+        // process your data to pull out what you plan to use to update the chart
+        // e.g. new label and a new data point
+
+        // add new label and data point to chart's underlying data structures
+        myChart.data.labels = data.time;
+        myChart.data.datasets[0].data = data.values;
+
+        // re-render the chart
+        myChart.update();
+      }
+    });
+  };
+  setInterval(getData, 5000);
 }
