@@ -19,7 +19,7 @@ void main()
 {
 	MongoClient client = connectMongoDB("127.0.0.1");
 	auto sensorsData = client.getCollection("dypronics.sensors.data");
-	sensorsData.drop();
+	// sensorsData.drop();
 
 	auto router = new URLRouter;
 	router.get("*", serveStaticFiles("public/"));
@@ -67,7 +67,8 @@ class RestServer : APIRoot {
 	PlotData sensorDataRaw(SensorId sid, SensorInterval interval, long count) {
 		Array!long time;
 		Array!double values;
-		const start = Clock.currTime.toUnixTime - interval.asSeconds * count;
+		const now = Clock.currTime.toUnixTime;
+		const start = now - (now % interval.asSeconds) - interval.asSeconds * count;
 		long tempTime = start;
 		double tempValue = 0.0;
 		long tempN = 0;
