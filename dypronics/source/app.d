@@ -44,7 +44,7 @@ void main()
 @path("/api/")
 interface APIRoot {
   void postSensor(SensorId sid, double value);
-	Json getSensor(SensorId sid);
+	Json getSensor(SensorId sid, SensorInterval interval, long count);
 }
 
 struct PlotData {
@@ -64,20 +64,39 @@ class RestServer : APIRoot {
 		dataCollection.insert(SensorData(sid, time, value));
 	}
 
-	PlotData sensorDataRaw(SensorId sid) {
+	PlotData sensorDataRaw(SensorId sid, SensorInterval interval, long count) {
 		Array!long time;
 		Array!double values;
-		foreach(doc; dataCollection.find(["sensor": sid])) {
+		const start = Clock.currTime.toUnixTime - interval.asSeconds * count;
+		long tempTime = start;
+		double tempValue = 0.0;
+		long tempN = 0;
+		foreach(doc; dataCollection.find(["sensor": sid.serializeToBson, "time" : [ "$gte": start ].serializeToBson])) {
 			if(!doc.isNull) {
-				time.insertBack(1000 * doc["time"].get!long);
-				values.insertBack(doc["value"].to!double);
+				auto t = doc["time"].get!long;
+				auto v = doc["value"].to!double;
+				if(t >= tempTime + interval.asSeconds) {
+					if(tempN > 0) {
+						time.insertBack(1000 * tempTime);
+						values.insertBack(tempValue / cast(double)tempN);
+					}
+					tempTime = t;
+					tempN = 0;
+					tempValue = 0.0;
+				}
+				tempN += 1;
+				tempValue += v;
 			}
+		}
+		if(tempN > 0) {
+			time.insertBack(1000 * tempTime);
+			values.insertBack(tempValue / cast(double)tempN);
 		}
 		return PlotData(time[].array, values[].array);
 	}
 
-	Json getSensor(SensorId sid) {
-	  return sensorDataRaw(sid).serializeToJson();
+	Json getSensor(SensorId sid, SensorInterval interval, long count) {
+	  return sensorDataRaw(sid, interval, count).serializeToJson();
 	}
 }
 
@@ -99,7 +118,7 @@ class WebInterface {
 		bool authenticated = ms_authenticated;
 		PlotData[SensorId] data;
 		if(authenticated) {
-			foreach(s; sensors) data[s.id] = restServer.sensorDataRaw(s.id);
+			foreach(s; sensors) data[s.id] = restServer.sensorDataRaw(s.id, SensorInterval.minute, 10);
 		}
 		render!("index.dt", authenticated, sensors, data);
 	}

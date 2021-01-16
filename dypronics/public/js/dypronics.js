@@ -1,5 +1,11 @@
-function getRandomInt(max) {
-  return Math.floor(Math.random() * Math.floor(max));
+var chartInterval = "second";
+var chartAmount = 300;
+var chartsCallbacks = [];
+
+function updateCharts() {
+  for (const cb of chartsCallbacks) {
+    cb();
+  }
 }
 
 function lineChart(id, title, color, units, labels, datapoints) {
@@ -37,9 +43,8 @@ function lineChart(id, title, color, units, labels, datapoints) {
 					xAxes: [{
             type: 'time',
             time: {
-              format: 'HH:mm',
+              parser: 'HH:mm',
               tooltipFormat: 'HH:mm',
-              stepSize: 10,
               displayFormats: {
                   'millisecond': 'HH:mm',
                   'second': 'HH:mm',
@@ -64,7 +69,7 @@ function lineChart(id, title, color, units, labels, datapoints) {
   });
   var getData = function() {
     $.ajax({
-      url: '/api/sensor?sid=' + id,
+      url: '/api/sensor?sid=' + id + '&interval=' + chartInterval + '&count=' + chartAmount,
       success: function(data) {
         // process your data to pull out what you plan to use to update the chart
         // e.g. new label and a new data point
@@ -79,4 +84,29 @@ function lineChart(id, title, color, units, labels, datapoints) {
     });
   };
   setInterval(getData, 5000);
+  chartsCallbacks.push(getData);
+}
+
+function setSeconds() {
+  chartInterval = "second";
+  chartAmount = 300;
+  updateCharts();
+}
+
+function setMinutes() {
+  chartInterval = "minute";
+  chartAmount = 60;
+  updateCharts();
+}
+
+function setHours() {
+  chartInterval = "hour";
+  chartAmount = 24;
+  updateCharts();
+}
+
+function setDays() {
+  chartInterval = "day";
+  chartAmount = 60;
+  updateCharts();
 }

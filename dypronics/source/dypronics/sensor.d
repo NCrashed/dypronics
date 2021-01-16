@@ -35,3 +35,20 @@ struct SensorData {
   long time; // seconds
   double value;
 }
+
+/// Time unit of sensor data
+enum SensorInterval {
+  second,
+  minute,
+  hour,
+  day,
+}
+
+long asSeconds(SensorInterval i) {
+  final switch(i) {
+    case SensorInterval.second: return 1;
+    case SensorInterval.minute: return 60;
+    case SensorInterval.hour: return 3600;
+    case SensorInterval.day: return 24*3600;
+  }
+}

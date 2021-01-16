@@ -4,14 +4,23 @@ block body
   include chart
 
   - if (authenticated)
-    form(action='logout', method='POST')
-      button(type='submit', class='ui button') Log out
-      div(class="grid-stack")
-        - foreach(sensor; sensors)
-          - chart(sensor, 6, 3, data[sensor.id].time, data[sensor.id].values);
+    div(class='ui grid')
+      div(class='row')
+        div(class='four wide column')
+          form(action='logout', method='POST')
+            button(type='submit', class='ui button') Log out
+        div(class='four wide column')
+          div(class='ui buttons')
+            button(class='ui button', onClick='setSeconds(); return false;') Seconds
+            button(class='ui button', onClick='setMinutes(); return false;') Minutes
+            button(class='ui button', onClick='setHours(); return false;') Hours
+            button(class='ui button', onClick='setDays(); return false;') Days
+    div(class="grid-stack")
+      - foreach(sensor; sensors)
+        - chart(sensor, 6, 3, data[sensor.id].time, data[sensor.id].values);
 
       script
-        | $(document).ready(function(){ GridStack.init(); });
+        | $(document).ready(function(){ GridStack.init({ "cellHeight": "100px"}); });
   - else
     h2 Log in
     form(action='login', method='POST', class='ui form')
