@@ -11,10 +11,13 @@ block body
             button(type='submit', class='ui button') Log out
         div(class='four wide column')
           div(class='ui buttons')
-            button(class='ui button', onClick='setSeconds(); return false;') Seconds
-            button(class='ui button', onClick='setMinutes(); return false;') Minutes
-            button(class='ui button', onClick='setHours(); return false;') Hours
-            button(class='ui button', onClick='setDays(); return false;') Days
+            button(class='ui button', onClick='setSeconds()') Seconds
+            button(class='ui button', onClick='setMinutes()') Minutes
+            button(class='ui button', onClick='setHours()') Hours
+            button(class='ui button', onClick='setDays()') Days
+        div(class='four wide column')
+          div(class='ui buttons')
+            button(class='ui button', onClick='downloadData()') Download
     div(class="grid-stack")
       - foreach(sensor; sensors)
         - chart(sensor, 6, 3, data[sensor.id].time, data[sensor.id].values);

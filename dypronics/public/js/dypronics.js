@@ -110,3 +110,7 @@ function setDays() {
   chartAmount = 60;
   updateCharts();
 }
+
+function downloadData() {
+  window.location = '/archive?interval=' + chartInterval + '&count=' + chartAmount;
+}

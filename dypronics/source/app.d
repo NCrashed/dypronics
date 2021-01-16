@@ -1,11 +1,13 @@
-import dypronics.sensor;
 import core.time;
+import dypronics.sensor;
 import std.array;
 import std.container.array;
 import std.conv;
 import std.datetime.systime;
-import vibe.core.core : runApplication;
+import std.process;
+import std.stdio;
 import vibe.core.core;
+import vibe.core.path;
 import vibe.db.mongo.mongo;
 import vibe.http.fileserver;
 import vibe.http.router;
@@ -140,6 +142,33 @@ class WebInterface {
 		ms_authenticated = false;
 		terminateSession();
 		redirect("/");
+	}
+
+	// Get archive of raw data
+	@method(HTTPMethod.GET) @path("archive")
+	void getArchive(HTTPServerRequest req, HTTPServerResponse res, SensorInterval interval, long count) {
+		bool authenticated = ms_authenticated;
+		enforceHTTP(authenticated, HTTPStatus.forbidden, "Not logged in.");
+
+		auto mkdirRes = executeShell("mkdir -p /tmp/dypronics");
+		enforceHTTP(mkdirRes.status == 0, HTTPStatus.internalServerError,
+			"Failed to make temporary dir: " ~ mkdirRes.output);
+		foreach(s; sensors) {
+			auto data = restServer.sensorDataRaw(s.id, interval, count);
+			auto f = File("/tmp/dypronics/" ~ s.nameShort ~ ".csv", "w");
+			f.writeln("Time,Value");
+			for(size_t i = 0; i < data.time.length; i++) {
+				f.writeln(data.time[i],",",data.values[i]);
+			}
+		}
+		executeShell("rm /tmp/dypronics.zip");
+		auto zipRes = executeShell("cd /tmp && zip -r dypronics.zip dypronics");
+		enforceHTTP(zipRes.status == 0, HTTPStatus.internalServerError,
+			"Failed to zip archive: " ~ zipRes.output);
+		scope(exit) {
+			executeShell("rm -rf /tmp/dypronics");
+		}
+		sendFile(req, res, NativePath("/tmp/dypronics.zip"));
 	}
 }
 
