@@ -1,11 +1,14 @@
+import dypronics.sensor;
+import std.container.array;
+import std.conv;
+import std.array;
+import std.datetime.systime;
 import vibe.core.core : runApplication;
+import vibe.db.mongo.mongo;
 import vibe.http.fileserver;
 import vibe.http.router;
 import vibe.http.server;
 import vibe.web.web;
-import vibe.db.mongo.mongo;
-import std.datetime.systime;
-import dypronics.sensor;
 
 version(unittest) { void main() {}}
 else {
@@ -67,8 +70,22 @@ class WebInterface {
 		redirect("/");
 	}
 
-	void postData(SensorId sid, float value) {
-		auto time = Clock.currTime.stdTime;
+	void postData(SensorId sid, double value) {
+		auto time = Clock.currTime.toUnixTime;
 		dataCollection.insert(SensorData(sid, time, value));
+	}
+
+	struct PlotData {
+		long[] time; // seconds
+		double[] values;
+	}
+	Json getData(SensorId sid) {
+		Array!long time;
+		Array!double values;
+		foreach(doc; dataCollection.find(["sensor": sid])) {
+			time.insertBack(doc["time"].get!long);
+			values.insertBack(doc["values"].to!double);
+		}
+		return PlotData(time[].array, values[].array).serializeToJson();
 	}
 }

@@ -26,6 +26,6 @@ Sensor[6] sensors = [
 /// Sensor data row stored in database
 struct SensorData {
   SensorId sensor;
-  long time;
-  float value;
+  long time; // seconds
+  double value;
 }
