@@ -4,6 +4,8 @@ import vibe.http.router;
 import vibe.http.server;
 import vibe.web.web;
 
+import dypronics.sensor;
+
 version(unittest) { void main() {}}
 else {
 void main()
@@ -34,7 +36,7 @@ class WebInterface {
 	void index()
 	{
 		bool authenticated = ms_authenticated;
-		render!("index.dt", authenticated);
+		render!("index.dt", authenticated, sensors);
 	}
 
 	// POST /login (username and password are automatically read as form fields)

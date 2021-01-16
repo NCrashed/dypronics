@@ -1,5 +1,6 @@
-- void chart(string name, string title)
-    h2 #{title}
-    canvas(id='#{name}', width='400', height='400')
-    script
-        | $(document).ready(function(){ lineChart("#{name}", "#{title}"); });
+- void chart(string name, string title, int w, int h, string color, string units)
+  div(class="grid-stack-item", gs-w="#{w}", gs-h="#{h}")
+    div(class="grid-stack-item-content")
+      canvas(id='#{name}', class="sensor-chart")
+      script
+        | $(document).ready(function(){ lineChart("#{name}", "#{title}", "#{color}", "#{units}"); });

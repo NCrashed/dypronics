@@ -3,12 +3,15 @@ extends layout
 block body
   include chart
 
-  h1 Welcome
-
   - if (authenticated)
     form(action='logout', method='POST')
       button(type='submit', class='ui button') Log out
-      - chart("chart-temp", "Temperature sensor");
+      div(class="grid-stack")
+        - foreach(sensor; sensors)
+          - chart(sensor.id, sensor.name, 6, 3, sensor.color, sensor.units);
+
+      script
+        | $(document).ready(function(){ GridStack.init(); });
   - else
     h2 Log in
     form(action='login', method='POST', class='ui form')

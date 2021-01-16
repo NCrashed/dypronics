@@ -2,15 +2,15 @@ function getRandomInt(max) {
   return Math.floor(Math.random() * Math.floor(max));
 }
 
-function lineChart(name, title) {
+function lineChart(name, title, color, units) {
   var ctx = document.getElementById(name);
   var datapoints = [0, 20, 20, 60, 60, 120, NaN, 180, 120, 125, 105, 110, 170];
   var data = {
     labels: ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12'],
     datasets: [{
       label: title,
-      backgroundColor: '#cc2020',
-      borderColor: '#cc2020',
+      backgroundColor: color,
+      borderColor: color,
       lineTension: 0,
       data: datapoints,
       fill: false,
@@ -18,6 +18,7 @@ function lineChart(name, title) {
     };
   var options = {
 				responsive: true,
+        maintainAspectRatio: true,
 				title: {
 					display: true,
 					text: title
@@ -30,6 +31,9 @@ function lineChart(name, title) {
 					mode: 'nearest',
 					intersect: true
 				},
+        legend: {
+          display: false,
+        },
         scales: {
 					xAxes: [{
 						display: true,
@@ -41,7 +45,7 @@ function lineChart(name, title) {
 						display: true,
 						scaleLabel: {
 							display: true,
-							labelString: 'Value'
+							labelString: units
 						},
 						ticks: {
 							suggestedMin: -10,

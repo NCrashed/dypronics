@@ -9,10 +9,13 @@ html
     title Dypronics
     - css("semantic.min");
     - css("Chart.min");
+    - css("gridstack.min");
+    - css("dypronics");
     - js("jquery-3.1.1.min");
   body
     div(class='ui container')
       block body
     - js("semantic.min");
     - js("Chart.min");
+    - js("gridstack-h5");
     - js("dypronics");
