@@ -1,13 +1,16 @@
 import dypronics.sensor;
+import core.time;
+import std.array;
 import std.container.array;
 import std.conv;
-import std.array;
 import std.datetime.systime;
 import vibe.core.core : runApplication;
+import vibe.core.core;
 import vibe.db.mongo.mongo;
 import vibe.http.fileserver;
 import vibe.http.router;
 import vibe.http.server;
+import vibe.web.rest;
 import vibe.web.web;
 
 version(unittest) { void main() {}}
@@ -20,6 +23,7 @@ void main()
 	auto router = new URLRouter;
 	router.get("*", serveStaticFiles("public/"));
 	router.registerWebInterface(new WebInterface(sensorsData));
+	router.registerRestInterface(new RestServer(sensorsData));
 
 	auto settings = new HTTPServerSettings;
 	settings.port = 8080;
@@ -29,8 +33,43 @@ void main()
 	auto l = listenHTTP(settings, router);
 	scope (exit) l.stopListening( );
 
+	runTask(&simulateData);
+
 	runApplication();
 }
+}
+
+@path("/api/")
+interface APIRoot {
+  void postData(SensorId sid, double value);
+	Json getData(SensorId sid);
+}
+
+class RestServer : APIRoot {
+	private MongoCollection dataCollection;
+
+	this(MongoCollection coll) {
+		dataCollection = coll;
+	}
+
+	void postData(SensorId sid, double value) {
+		auto time = Clock.currTime.toUnixTime;
+		dataCollection.insert(SensorData(sid, time, value));
+	}
+
+	struct PlotData {
+		long[] time; // seconds
+		double[] values;
+	}
+	Json getData(SensorId sid) {
+		Array!long time;
+		Array!double values;
+		foreach(doc; dataCollection.find(["sensor": sid])) {
+			time.insertBack(doc["time"].get!long);
+			values.insertBack(doc["values"].to!double);
+		}
+		return PlotData(time[].array, values[].array).serializeToJson();
+	}
 }
 
 class WebInterface {
@@ -69,23 +108,15 @@ class WebInterface {
 		terminateSession();
 		redirect("/");
 	}
+}
 
-	void postData(SensorId sid, double value) {
-		auto time = Clock.currTime.toUnixTime;
-		dataCollection.insert(SensorData(sid, time, value));
-	}
-
-	struct PlotData {
-		long[] time; // seconds
-		double[] values;
-	}
-	Json getData(SensorId sid) {
-		Array!long time;
-		Array!double values;
-		foreach(doc; dataCollection.find(["sensor": sid])) {
-			time.insertBack(doc["time"].get!long);
-			values.insertBack(doc["values"].to!double);
+void simulateData() {
+	auto client = new RestInterfaceClient!APIRoot("http://127.0.0.1:8080/");
+	while(true) {
+		import std.stdio; writeln("Generate data");
+		foreach(s; sensors) {
+			client.postData(s.id, s.randomValue);
 		}
-		return PlotData(time[].array, values[].array).serializeToJson();
+		sleep(1.seconds);
 	}
 }
