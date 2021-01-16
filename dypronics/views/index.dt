@@ -8,7 +8,7 @@ block body
       button(type='submit', class='ui button') Log out
       div(class="grid-stack")
         - foreach(sensor; sensors)
-          - chart(sensor.id, sensor.name, 6, 3, sensor.color, sensor.units);
+          - chart(sensor, 6, 3);
 
       script
         | $(document).ready(function(){ GridStack.init(); });
