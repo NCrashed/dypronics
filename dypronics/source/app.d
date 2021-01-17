@@ -12,6 +12,7 @@ import vibe.db.mongo.mongo;
 import vibe.http.fileserver;
 import vibe.http.router;
 import vibe.http.server;
+import vibe.http.client;
 import vibe.web.rest;
 import vibe.web.web;
 import vibe.web.auth;
@@ -26,9 +27,7 @@ void main()
 
 	auto router = new URLRouter;
 	router.get("*", serveStaticFiles("public/"));
-	auto restServer = new RestServer(sensorsData);
-	router.registerRestInterface(restServer);
-	router.registerWebInterface(new WebInterface(restServer));
+	router.registerWebInterface(new WebInterface(sensorsData));
 
 	auto settings = new HTTPServerSettings;
 	settings.port = 8080;
@@ -52,49 +51,13 @@ struct AuthInfo {
 	bool isSensor() { return !isAdmin(); }
 }
 
-@path("/api/")
-@requiresAuth!AuthInfo
-interface APIRoot {
-	@noAuth
-	AuthInfo postLogin(string username, string password);
-	@anyAuth
-	void postLogout(Session session);
-	@anyAuth
-  void postSensor(SensorId sid, double value);
-	@auth(Role.admin)
-	Json getSensor(SensorId sid, SensorInterval interval, long count);
-}
-
 struct PlotData {
 	long[] time; // milli seconds
 	double[] values;
 }
 
-Session getSession(HTTPServerRequest req, HTTPServerResponse res)
-{
-    return req.session ? req.session : res.startSession();
-}
-
-AuthInfo storeSession(AuthInfo info, HTTPServerRequest req, HTTPServerResponse res)
-{
-	if(!req.session) {
-		auto session = res.startSession();
-		session.set("auth", info);
-	} else {
-		req.session.set("auth", info);
-	}
-	return info;
-}
-
-AuthInfo sessionAuth(scope HTTPServerRequest req, scope HTTPServerResponse res) @safe
-{
-	if (!req.session || !req.session.isKeySet("auth"))
-		throw new HTTPStatusException(HTTPStatus.forbidden, "Not authorized to perform this action!");
-
-	return req.session.get!AuthInfo("auth");
-}
-
-class RestServer : APIRoot {
+@requiresAuth
+class WebInterface {
 	private MongoCollection dataCollection;
 
 	this(MongoCollection coll) {
@@ -104,29 +67,32 @@ class RestServer : APIRoot {
 	@noRoute
   AuthInfo authenticate(scope HTTPServerRequest req, scope HTTPServerResponse res) @safe
 	{
-		return sessionAuth(req, res);
+		if (!req.session || !req.session.isKeySet("auth"))
+			throw new HTTPStatusException(HTTPStatus.forbidden, "Not authorized to perform this action!");
+
+		return req.session.get!AuthInfo("auth");
   }
 
-	@after!storeSession
-  AuthInfo postLogin(string username, string password)
-  {
-		enforceHTTP(username == "admin" && password == "secret",
-			HTTPStatus.forbidden, "Invalid user name or password.");
-		return AuthInfo(username);
-  }
+	// GET /
+	@noAuth
+	void index(scope HTTPServerRequest req, scope HTTPServerResponse res)
+	{
+		bool authenticated = req.session && req.session.isKeySet("auth");
+		PlotData[SensorId] data;
+		if(authenticated) {
+			foreach(s; sensors) data[s.id] = getSensorData(s.id, SensorInterval.minute, 10);
+		}
+		render!("index.dt", authenticated, sensors, data);
+	}
 
-	@before!getSession("session")
-  void postLogout(Session session)
-  {
-		session.remove("auth");
-  }
-
+	@noAuth
 	void postSensor(SensorId sid, double value) {
 		auto time = Clock.currTime.toUnixTime;
 		dataCollection.insert(SensorData(sid, time, value));
 	}
 
-	PlotData sensorDataRaw(SensorId sid, SensorInterval interval, long count) {
+	@noRoute
+	PlotData getSensorData(SensorId sid, SensorInterval interval, long count) {
 		Array!long time;
 		Array!double values;
 		const now = Clock.currTime.toUnixTime;
@@ -158,57 +124,30 @@ class RestServer : APIRoot {
 		return PlotData(time[].array, values[].array);
 	}
 
+	@auth(Role.admin)
 	Json getSensor(SensorId sid, SensorInterval interval, long count) {
-	  return sensorDataRaw(sid, interval, count).serializeToJson();
-	}
-}
-
-@requiresAuth
-class WebInterface {
-	private RestServer restServer;
-
-	this(RestServer restServer) {
-		this.restServer = restServer;
-	}
-
-	@noRoute
-  AuthInfo authenticate(scope HTTPServerRequest req, scope HTTPServerResponse res) @safe
-	{
-		return sessionAuth(req, res);
-  }
-
-	// GET /
-	@noAuth @path("/")
-	void indexUnauth()
-	{
-		bool authenticated = false;
-		PlotData[SensorId] data;
-		render!("index.dt", authenticated, sensors, data);
-	}
-
-	// GET /
-	@auth(Role.admin) @path("/")
-	void indexAuth()
-	{
-		bool authenticated = true;
-		PlotData[SensorId] data;
-		foreach(s; sensors) data[s.id] = restServer.sensorDataRaw(s.id, SensorInterval.minute, 10);
-		render!("index.dt", authenticated, sensors, data);
+	  return getSensorData(sid, interval, count).serializeToJson();
 	}
 
 	// POST /login (username and password are automatically read as form fields)
 	@noAuth
-	void postLogin(string username, string password)
+	void postLogin(scope HTTPServerRequest req, scope HTTPServerResponse res, string username, string password)
 	{
-		restServer.postLogin(username, password);
+		enforceHTTP(username == "admin" && password == "secret",
+			HTTPStatus.forbidden, "Invalid user name or password.");
+		auto info = AuthInfo(username);
+
+		auto session = !req.session ? res.startSession() : req.session;
+		session.set("auth", info);
+
 		redirect("/");
 	}
 
 	// POST /logout
 	@anyAuth
-	void postLogout(scope HTTPServerRequest req)
+	void postLogout(scope HTTPServerRequest req, scope HTTPServerResponse res)
 	{
-		restServer.postLogout(req.session);
+		req.session.remove("auth");
 		terminateSession();
 		redirect("/");
 	}
@@ -220,7 +159,7 @@ class WebInterface {
 		enforceHTTP(mkdirRes.status == 0, HTTPStatus.internalServerError,
 			"Failed to make temporary dir: " ~ mkdirRes.output);
 		foreach(s; sensors) {
-			auto data = restServer.sensorDataRaw(s.id, interval, count);
+			auto data = getSensorData(s.id, interval, count);
 			auto f = File("/tmp/dypronics/" ~ s.nameShort ~ ".csv", "w");
 			f.writeln("Time,Value");
 			for(size_t i = 0; i < data.time.length; i++) {
@@ -239,13 +178,18 @@ class WebInterface {
 }
 
 void simulateData() {
-	auto client = new RestInterfaceClient!APIRoot("http://127.0.0.1:8080/");
+	// auto client = new RestInterfaceClient!APIRoot("http://127.0.0.1:8080/");
+
 	while(true) {
 		foreach(s; sensors) {
-			writeln("Logging");
-			client.postLogin("admin", "secret");
-			writeln("Posting");
-			client.postSensor(s.id, s.randomValue);
+			requestHTTP("http://127.0.0.1:8080/sensor",
+				(scope req) {
+					req.method = HTTPMethod.POST;
+					req.writeFormBody(["sid": s.id.to!string, "value": s.randomValue.to!string]);
+				},
+				(scope res) {
+
+				});
 		}
 		sleep(1.seconds);
 	}

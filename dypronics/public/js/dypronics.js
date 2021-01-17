@@ -69,7 +69,7 @@ function lineChart(id, title, color, units, labels, datapoints) {
   });
   var getData = function() {
     $.ajax({
-      url: '/api/sensor?sid=' + id + '&interval=' + chartInterval + '&count=' + chartAmount,
+      url: '/sensor?sid=' + id + '&interval=' + chartInterval + '&count=' + chartAmount,
       success: function(data) {
         // process your data to pull out what you plan to use to update the chart
         // e.g. new label and a new data point
