@@ -14,6 +14,7 @@ import vibe.http.router;
 import vibe.http.server;
 import vibe.web.rest;
 import vibe.web.web;
+import vibe.web.auth;
 
 version(unittest) { void main() {}}
 else {
@@ -43,9 +44,24 @@ void main()
 }
 }
 
+struct AuthInfo {
+	@safe:
+	string userName;
+
+	bool isAdmin() { return userName == "admin"; }
+	bool isSensor() { return !isAdmin(); }
+}
+
 @path("/api/")
+@requiresAuth!AuthInfo
 interface APIRoot {
+	@noAuth
+	AuthInfo postLogin(string username, string password);
+	@anyAuth
+	void postLogout(Session session);
+	@anyAuth
   void postSensor(SensorId sid, double value);
+	@auth(Role.admin)
 	Json getSensor(SensorId sid, SensorInterval interval, long count);
 }
 
@@ -54,12 +70,56 @@ struct PlotData {
 	double[] values;
 }
 
+Session getSession(HTTPServerRequest req, HTTPServerResponse res)
+{
+    return req.session ? req.session : res.startSession();
+}
+
+AuthInfo storeSession(AuthInfo info, HTTPServerRequest req, HTTPServerResponse res)
+{
+	if(!req.session) {
+		auto session = res.startSession();
+		session.set("auth", info);
+	} else {
+		req.session.set("auth", info);
+	}
+	return info;
+}
+
+AuthInfo sessionAuth(scope HTTPServerRequest req, scope HTTPServerResponse res) @safe
+{
+	if (!req.session || !req.session.isKeySet("auth"))
+		throw new HTTPStatusException(HTTPStatus.forbidden, "Not authorized to perform this action!");
+
+	return req.session.get!AuthInfo("auth");
+}
+
 class RestServer : APIRoot {
 	private MongoCollection dataCollection;
 
 	this(MongoCollection coll) {
 		dataCollection = coll;
 	}
+
+	@noRoute
+  AuthInfo authenticate(scope HTTPServerRequest req, scope HTTPServerResponse res) @safe
+	{
+		return sessionAuth(req, res);
+  }
+
+	@after!storeSession
+  AuthInfo postLogin(string username, string password)
+  {
+		enforceHTTP(username == "admin" && password == "secret",
+			HTTPStatus.forbidden, "Invalid user name or password.");
+		return AuthInfo(username);
+  }
+
+	@before!getSession("session")
+  void postLogout(Session session)
+  {
+		session.remove("auth");
+  }
 
 	void postSensor(SensorId sid, double value) {
 		auto time = Clock.currTime.toUnixTime;
@@ -103,53 +163,59 @@ class RestServer : APIRoot {
 	}
 }
 
+@requiresAuth
 class WebInterface {
-	private {
-		// stored in the session store
-		SessionVar!(bool, "authenticated") ms_authenticated;
-		// Sensor data collection
-		RestServer restServer;
-	}
+	private RestServer restServer;
 
 	this(RestServer restServer) {
 		this.restServer = restServer;
 	}
 
-	// GET /
-	void index()
+	@noRoute
+  AuthInfo authenticate(scope HTTPServerRequest req, scope HTTPServerResponse res) @safe
 	{
-		bool authenticated = ms_authenticated;
+		return sessionAuth(req, res);
+  }
+
+	// GET /
+	@noAuth @path("/")
+	void indexUnauth()
+	{
+		bool authenticated = false;
 		PlotData[SensorId] data;
-		if(authenticated) {
-			foreach(s; sensors) data[s.id] = restServer.sensorDataRaw(s.id, SensorInterval.minute, 10);
-		}
+		render!("index.dt", authenticated, sensors, data);
+	}
+
+	// GET /
+	@auth(Role.admin) @path("/")
+	void indexAuth()
+	{
+		bool authenticated = true;
+		PlotData[SensorId] data;
+		foreach(s; sensors) data[s.id] = restServer.sensorDataRaw(s.id, SensorInterval.minute, 10);
 		render!("index.dt", authenticated, sensors, data);
 	}
 
 	// POST /login (username and password are automatically read as form fields)
+	@noAuth
 	void postLogin(string username, string password)
 	{
-		enforceHTTP(username == "user" && password == "secret",
-			HTTPStatus.forbidden, "Invalid user name or password.");
-		ms_authenticated = true;
+		restServer.postLogin(username, password);
 		redirect("/");
 	}
 
 	// POST /logout
-	@method(HTTPMethod.POST) @path("logout")
-	void postLogout()
+	@anyAuth
+	void postLogout(scope HTTPServerRequest req)
 	{
-		ms_authenticated = false;
+		restServer.postLogout(req.session);
 		terminateSession();
 		redirect("/");
 	}
 
 	// Get archive of raw data
-	@method(HTTPMethod.GET) @path("archive")
+	@auth(Role.admin) @method(HTTPMethod.GET) @path("archive")
 	void getArchive(HTTPServerRequest req, HTTPServerResponse res, SensorInterval interval, long count) {
-		bool authenticated = ms_authenticated;
-		enforceHTTP(authenticated, HTTPStatus.forbidden, "Not logged in.");
-
 		auto mkdirRes = executeShell("mkdir -p /tmp/dypronics");
 		enforceHTTP(mkdirRes.status == 0, HTTPStatus.internalServerError,
 			"Failed to make temporary dir: " ~ mkdirRes.output);
@@ -176,6 +242,9 @@ void simulateData() {
 	auto client = new RestInterfaceClient!APIRoot("http://127.0.0.1:8080/");
 	while(true) {
 		foreach(s; sensors) {
+			writeln("Logging");
+			client.postLogin("admin", "secret");
+			writeln("Posting");
 			client.postSensor(s.id, s.randomValue);
 		}
 		sleep(1.seconds);
