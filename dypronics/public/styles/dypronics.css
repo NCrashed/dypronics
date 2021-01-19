@@ -5,3 +5,7 @@
 .grid-stack-item-content {
   overflow-y: hidden !important;
 }
+.camera-frame {
+  width: 100%;
+  height: 100%;
+}

@@ -19,9 +19,11 @@ block body
           div(class='ui buttons')
             button(class='ui button', onClick='downloadData()') Download
     div(class="grid-stack")
+      div(class="grid-stack-item", gs-w="8", gs-h="4", gs-x="2", gs-y="0")
+        div(class="grid-stack-item-content")
+          img(src="/camera",class="camera-frame")
       - foreach(sensor; sensors)
         - chart(sensor, 6, 3, data[sensor.id].time, data[sensor.id].values);
-
       script
         | $(document).ready(function(){ GridStack.init({ "cellHeight": "100px"}); });
   - else
