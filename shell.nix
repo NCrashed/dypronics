@@ -20,5 +20,7 @@ stdenv.mkDerivation rec {
     pkg-config
     openssl
     inotify-tools
+    zip
+    motion
   ];
 }

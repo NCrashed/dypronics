@@ -8,6 +8,7 @@ import std.process;
 import std.stdio;
 import vibe.core.core;
 import vibe.core.path;
+import vibe.core.stream;
 import vibe.db.mongo.mongo;
 import vibe.http.fileserver;
 import vibe.http.router;
@@ -174,6 +175,26 @@ class WebInterface {
 			executeShell("rm -rf /tmp/dypronics");
 		}
 		sendFile(req, res, NativePath("/tmp/dypronics.zip"));
+	}
+
+	@auth(Role.admin) @method(HTTPMethod.GET) @path("/camera")
+	void proxyCamera(HTTPServerRequest req, HTTPServerResponse res)
+	{
+		requestHTTP("http://127.0.0.1:8081/1",
+			(scope creq) {
+				creq.method = HTTPMethod.GET;
+			},
+			(scope cres) {
+				res.headers.addField("Connection", "Keep-Alive");
+				res.contentType = cres.contentType;
+				auto resWriter = res.bodyWriter;
+				auto resReader = cres.bodyReader;
+				ubyte[4096] buffer;
+				while(!resReader.empty) {
+					auto l = resReader.read(buffer, IOMode.all);
+					resWriter.write(buffer[0 .. l]);
+				}
+			});
 	}
 }
 
